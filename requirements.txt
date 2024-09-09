@@ -1,5 +1,5 @@
 streamlit
-pygame==2.5.0
+pygame
 pyht # Use an available version of pyht
 pydub==0.25.1
 groq

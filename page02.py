@@ -12,71 +12,70 @@ pygame.mixer.init()
 # Streamlit sidebar inputs for user credentials and file name
 with st.sidebar:
     st.header("PlayHT Settings")
-    user_id = st.text_input("Enter your PlayHT User ID:", type="password")
-    api_key = st.text_input("Enter your PlayHT API Key:", type="password")
-    day = st.text_input("Enter the day (e.g., 01 for the first day):", "01")
-    tts_number = st.text_input("Enter the TTS number:", "01")
+    user_id = st.text_input("Enter your PlayHT User ID:")
+    api_key = st.text_input("Enter your PlayHT API Key:")
+    day = st.text_input("Enter the day (e.g., 01 for the first day):")
+    tts_number = st.text_input("Enter the TTS number:")
     speed = st.slider("Select Speech Speed:", min_value=0.5, max_value=2.0, value=0.9, step=0.1)
 
-# Initialize pyht client with user credentials
-if user_id and api_key:
-    pyht_client = Client(
+# Function to initialize pyht client with user credentials
+def get_pyht_client(user_id, api_key):
+    return Client(
         user_id=user_id,
         api_key=api_key
     )
 
-    def text_to_speech_realtime(text, speed):
-        """Convert text to speech and save it as an MP3 file using pyht."""
-        options = TTSOptions(
-            voice="s3://voice-cloning-zero-shot/f3c22a65-87e8-441f-aea5-10a1c201e522/original/manifest.json",
-            speed=speed
-        )
-        audio_data = io.BytesIO()
-        
-        try:
-            # Fetch the TTS audio data chunk by chunk
-            for chunk in pyht_client.tts(text, options):
-                audio_data.write(chunk)
-            
-            audio_data.seek(0)
-            
-            # Convert the audio data to MP3 format
-            filename = f"{day}{tts_number}DUKRAD.mp3"
-            audio = AudioSegment.from_file(io.BytesIO(audio_data.getvalue()), format="wav")
-            audio.export(filename, format="mp3")
-            
-            # Return the filename and the audio data for playback
-            return filename, audio_data
-        
-        except Exception as e:
-            st.error(f"Error generating audio: {e}")
-            return None, None
+def text_to_speech_realtime(text, speed, user_id, api_key):
+    """Convert text to speech and save it as an MP3 file using pyht."""
+    options = TTSOptions(
+        voice="s3://voice-cloning-zero-shot/f3c22a65-87e8-441f-aea5-10a1c201e522/original/manifest.json",
+        speed=speed
+    )
+    audio_data = io.BytesIO()
+    
+    pyht_client = get_pyht_client(user_id, api_key)
+    
+    # Fetch the TTS audio data chunk by chunk
+    for chunk in pyht_client.tts(text, options):
+        audio_data.write(chunk)
+    
+    audio_data.seek(0)
+    
+    # Convert the audio data to MP3 format
+    filename = f"{day}{tts_number}DUKRAD.mp3"
+    audio = AudioSegment.from_file(io.BytesIO(audio_data.getvalue()), format="wav")
+    audio.export(filename, format="mp3")
+    
+    # Return the filename and the audio data for playback
+    return filename, audio_data
 
-    # Streamlit app layout
-    st.title("Text to Speech with PlayHT")
-    user_input = st.text_input("Enter the text you want to convert to speech:")
+# Streamlit app layout
+st.title("Text to Speech with PlayHT")
+user_input = st.text_input("Enter the text you want to convert to speech:")
 
-    if st.button("Convert to Speech"):
+if st.button("Convert to Speech"):
+    if user_id and api_key:
         if user_input:
             with st.spinner('Generating audio...'):
-                filename, audio_data = text_to_speech_realtime(user_input, speed)
+                filename, audio_data = text_to_speech_realtime(user_input, speed, user_id, api_key)
             
-            if filename:
-                st.success(f"Audio saved as {filename}")
-                
-                # Provide playback for the generated TTS audio
-                st.audio(audio_data, format="audio/mp3")
-                
-                # Provide a download link for the audio file
-                with open(filename, "rb") as f:
-                    st.download_button(
-                        label="Download Audio",
-                        data=f,
-                        file_name=filename,
-                        mime="audio/mpeg"
-                    )
+            st.success(f"Audio saved as {filename}")
+            
+            # Provide playback for the generated TTS audio
+            st.audio(audio_data, format="audio/mp3")
+            
+            # Provide a download link for the audio file
+            with open(filename, "rb") as f:
+                st.download_button(
+                    label="Download Audio",
+                    data=f,
+                    file_name=filename,
+                    mime="audio/mpeg"
+                )
         else:
             st.warning("Please enter some text!")
+    else:
+        st.warning("Please provide your PlayHT User ID and API Key!")
 
 # File uploader for music files
 st.sidebar.header("Upload Music")
@@ -94,5 +93,3 @@ if uploaded_file is not None:
     # Optionally, you can play the uploaded music using pygame
     pygame.mixer.music.load(temp_file_path)
     pygame.mixer.music.play(loops=-1)  # Loop the music
-else:
-    st.sidebar.info("Upload an MP3 file to play music.")

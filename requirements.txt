@@ -1,0 +1,4 @@
+streamlit==1.21.0
+pygame==2.5.0
+pyht # Use an available version of pyht
+pydub==0.25.1
